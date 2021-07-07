@@ -1,0 +1,140 @@
+* BarcodeSWE
+This repo contains necessary code for creating a curated database of
+DNA barcode information. The original implementation for this came
+from a  pilot study that looks at monitoring pollinators within Sweden using
+DNA data instead of traditional methods for species determination. The tools here
+are however not specific to any particular group of species and any
+data set with DNA barcodes can use this to build a curated
+database specific to geographic region of interest.
+
+The approach taken is using several different softwares and approaches
+to, from public and/or internal data sets, create a curated list of
+DNA barcodes that later can be used to in an automated fashion
+determine which species a particular DNA sequence comes from. 
+
+Key features of the curated database tool are:
+-  A comprehensive list of species and barcodes (everything from that
+is included in the start is retained).
+- Easy interactive filtering options to omit sequences and entries that are
+problematic.
+- A log file with all settings are attached to the output.
+- Adding new data via web-interface. 
+
+** Data needed for the analysis
+A set of species names that are of interest in relation to taxonomic
+grouping. DNA barcode data for this set of species from BOLD and NCBI
+will be downloaded and retained. Any user supplied data will be added
+to this set of sequences and analysed with respect to sequence
+similarity and/or taxonomic labelling. 
+
+** Pipeline
+To start with all DNA barcodes for the species of interest will be
+downloaded from BOLD (using the [[https://github.com/ropensci/bold][boldR]] package). The data from BOLD is
+analysed using BAGS and the results is added as metadata to the
+database.
+
+Following this the corresponding data from NCBI is downloaded and
+entries that are already found in BOLD is filtered to avoid having
+duplicated entries in the database.
+
+If there are in-house data available this can be added at the last
+step of the analysis.
+
+** Tools needed for complete functionality
+The pipeline is mostly using published scientific tools and there goal
+is not to create novel tools, rather a convient webpage to simplify
+the use of these tools and effeciently combine outputs in a database. 
+
+- [[https://github.com/tadeu95/BAGS][BAGS]]
+
+  Tool that will download data from BOLD based on species lists. All
+  species that have data from the most commonly used barcode gene
+  cytochrome oxidase 1 (CO1) will be downloaded and depending on a set
+  of criteria the samples and corresponding sequences will be labeled
+  from A to E.
+  + Grade A: Consolidated concordance. The morphospecies is assigned a
+    unique BIN, which is also assigned uniquely to that species, plus
+    the species has more than 10 specimens present in the library.
+  + Grade B Basal concordance. The morphospecies is assigned a unique
+    BIN, which is also assigned uniquely to that species, but the
+    species has 10 or less specimens present in the reference library
+  + Grade C Multiple BINs. The morphospecies is assigned more than one
+    different BIN, but each of those BINs are assigned exclusively to
+    that species
+  + Grade D Insufficient data. Species is not assigned discordantly,
+    but it has less than 3 specimens available in the reference
+    library
+  + Grade E Discordant species assignment. Species assigned to a BIN
+    that is assigned to more than one different species. The specimen
+    may match with a different species or display paraphyly or
+    polyphyly
+  
+  In the this context Grade A to D have no clear evidence of problems,
+  but grade E is a clear indication of groups that needs to be further
+  investigated there are problems with the taxonomy and/or sequences
+  reported.
+
+- [[https://onlinelibrary.wiley.com/doi/full/10.1111/1755-0998.13281][ASAP]] 
+
+  This tool has common features with BAGS, but is not using the
+  taxonomy labels and BOLD bins to evaluate groupings, it will only
+  based on sequence data use an evolutionary model of sequence
+  divergence to identify barcode gaps eg. a genetic distance that
+  reflect evolutionary divergence between groups of interbreeding
+  individuals (eg. species). For many taxonomic groups there is clear
+  and distinct "evolutionary gap that reflect species and this is
+  groups where species determination using DNA sequence data is likely
+  to be successful. Groups with gaps that are very small or
+  non-existing will likely be harder to correctly assign using a
+  barcode sequence. Small gaps can however just as for the BAGS
+  analysis be a result of lack of data and/or issues with sequences.
+
+- [[http://www2.decipher.codes/][DECIPHER]]
+
+  This is an R-package that have several convient functions to be used
+  for creating/viewing/manipulating sequence data. In this package it
+  is used in two different ways. It is used to create a sql-lite
+  database for the sequence data in the database. This is then used both for
+  filtering and adding information to the database. It will also be used
+  for creating an alignment files with all sequences and create
+  simples trees displaying the evolutionary relationship among the
+  sequences. The central part of this tool for this pipeline is to
+  generate four fasta files with the following data:
+  - All sequences, unaligned in fasta format
+
+  - All sequences, aligned in fasta format
+
+  - All retained sequences, unaligned in fasta format
+
+  - All retained sequences, aligned i fasta format
+
+- [[https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=Download][BLAST]]
+  
+  This tool is used for matching sequences to sequences in databases. This is
+  the de-facto standard for comparing sequence data. As input it needs
+  unaligned indexed sequence data. If setup in the correct fashion it
+  can also retain taxonomic information for sequences that are part of
+  the online database hosted by NCBI. 
+  
+
+
+** Output
+The output of this tool is a curated sequence database with the most
+likely taxonomic label on each of the sequences. The tool will not
+remove sequences from the input, but will make it easy to selected a
+set of sequences to be used for classification. This makes it easy to
+evaluate the impact of filtering and makes it easy for experts to
+retain the right information in the taxonomic groups they have
+knowledge about. Since part of the curation can be altered in a
+graphical interface a complete log of settings and number of sequences
+to that are used in the analysis are generated along with the
+analysis.
+
+The final database is then used to create an blast database that can
+be used for sequence comparisons as well as databases suitable for
+tracking taxonomy using decipher.
+
+
+
+
+ 
