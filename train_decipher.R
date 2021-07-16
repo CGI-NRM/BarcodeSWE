@@ -15,7 +15,7 @@ groupCounts <- table(groups)
 u_groups <- names(groupCounts) # unique groups
 length(u_groups) # number of groups
 
-maxGroupSize <- Inf # >= 1
+maxGroupSize <- 10 # >= 1
 remove <- logical(length(seqs))
 for (i in which(groupCounts > maxGroupSize)) {
     index <- which(groups == u_groups[i])
@@ -25,7 +25,7 @@ for (i in which(groupCounts > maxGroupSize)) {
 
 print(paste0("Number of eliminated species: ", sum(remove)))
 
-maxIterations <- 3 # must be >= 1
+maxIterations <- 5 # must be >= 1
 allowGroupRemoval <- FALSE
 probSeqsPrev <- integer() # suspected problem sequences from prior iteration
 for (i in seq_len(maxIterations)) {
@@ -61,3 +61,5 @@ for (i in seq_len(maxIterations)) {
 
 print(paste0("Total number of sequences eliminated: ", sum(remove)))
 print(paste0("Number of remaining problem sequences: ", length(probSeqs)))
+
+save(list = "trainingSet", file = "trainingSet.Rdata")

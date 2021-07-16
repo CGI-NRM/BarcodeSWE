@@ -1,5 +1,6 @@
 done <- FALSE
 
+print("Downloading nt database")
 while (!done) {
     done <- TRUE
     tryCatch({
@@ -10,6 +11,7 @@ while (!done) {
     })
 }
 
+print("Downloading taxdb database")
 while (!done) {
     done <- TRUE
     tryCatch({
@@ -20,6 +22,7 @@ while (!done) {
     })
 }
 
+print("Downloading taxdb metadata")
 while (!done) {
     done <- TRUE
     tryCatch({
