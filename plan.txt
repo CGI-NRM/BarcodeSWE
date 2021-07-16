@@ -1,0 +1,27 @@
+# ███ █   ███ █  █
+# █ █ █   █ █ ██ █
+# ███ █   ███ █ ██
+# █   █   █ █ █ ██
+# █   ███ █ █ █  █
+ 
+# One or a few scripts:
+#   - Download ncbi database
+#   - Download bold data
+#   - Add data from ncbi to bold-downloaded data (using blast search)
+#   - Add own data
+
+# (Maybe use ASAP or decipher to create our own bins)
+# Probably, or use the same system bold uses (if that is public and r/python/c/java/some language i know - friendly)
+# This would improve it quite a bit
+
+# Filter data to raise bags score
+# Shiny app:
+#   - Show scores
+#   - Pick out samples making it bad
+#   - Allow the user to remove those
+
+# Search with new sequences (ASAP or decipher)
+#   - Allow user to choose what database to match against
+#       - That is before or after the bags filtering
+# Show matches
+# If they match, add option to merge into data
