@@ -1,6 +1,7 @@
 library(magrittr)
 
 source("download_bold_database.R")
+source("generate_blast_query.R")
 
 options(shiny.maxRequestSize = 50 * 1024^2)
 
@@ -47,6 +48,10 @@ ui <- shiny::fluidPage(
             shiny::numericInput(inputId = "numeric_keep_the_longest_n", label = "Keep only the longest N samples: ", value = 30, min = 1), 
             shiny::actionButton(inputId = "button_export_filtered_data", label = "Save Filtered Bold File"),
             DT::dataTableOutput(outputId = "DT_species_viewer")
+        ),
+        shiny::tabPanel(title = "Blast NCBI Data", label = "tab_blast_ncbi_data",
+            shiny::actionButton(inputId = "button_generate_blast_query", label = "Generate Blast Query"),
+            shiny::div(id = "div_show_fa_querys")
         )
     )
 )
@@ -92,13 +97,13 @@ server <- function(input, output, session) {
         shiny::req(input$file_species_list)
 
         tryCatch({
-            species <<- read.table(file = input$file_species_list$datapath, header = input$checkbox_species_file_header, sep = ",", comment.char = "", stringsAsFactors = FALSE)
+            species <<- read.table(file = input$file_species_list$datapath, header = input$checkbox_species_file_header, sep = ",", comment.char = "", stringsAsFactors = FALSE)[[1]]
         }, error = function(err) {
             shiny::showNotification(paste0("Could not load file.", err$message), duration = 15, type = "error")
         })
 
         output$DT_species_list <- DT::renderDataTable(options = list(scrollX = TRUE, paging = FALSE), rownames = FALSE, filter = "none", {
-            species
+            data.frame("Species" = species)
         })
     })
 
@@ -136,7 +141,7 @@ server <- function(input, output, session) {
 
         shiny::showNotification(paste0("Downloaded: ", nrow(bold_data), " samples from bold systems."), duration = 0, type = "message")
 
-        write.table(taxon, file = "bold.tsv", sep = "\t", row.names = FALSE)
+        write.table(bold_data, file = "bold.tsv", sep = "\t", row.names = FALSE)
         shiny::showNotification("Exported bold data to 'bold.tsv'", duration = 0, type = "message")
 
         output$DT_bold_data <- DT::renderDataTable(options = list(pageLength = 25, lengthMenu = c(25, 50, 100, 250, nrow(bold_data) %>% min(500) %>% max(250)), scrollX = TRUE), rownames = FALSE, filter = "top", {
@@ -155,7 +160,6 @@ server <- function(input, output, session) {
             species <<- bold_data$species_name %>% unique
 
             if ("filter_threshold" %in% colnames(bold_data)) {
-                print("h")
                 filtered_bold_data <<- data.frame(bold_data)
                 updateNumericInput(session, "numeric_keep_the_longest_n", value = bold_data$filter_threshold[[1]])
             }
@@ -198,11 +202,17 @@ server <- function(input, output, session) {
         for (spe in species) {
             if ((only_europe_bold_data$species_name == spe) %>% sum >= input$numeric_keep_the_longest_n) {
                 species_mask <- only_europe_bold_data$species_name == spe
+                if (!any(species_mask)) {
+                    next
+                }
                 sorted_order <- sort.list(only_europe_bold_data[species_mask, ]$base_number, decreasing = TRUE)
                 indexes <- head(sorted_order, n = input$numeric_keep_the_longest_n)
                 filtered_bold_data <<- filtered_bold_data %>% rbind(only_europe_bold_data[species_mask, ][indexes, ])
             } else {
                 species_mask <- bold_data$species_name == spe
+                if (!any(species_mask)) {
+                    next
+                }
                 sorted_order <- sort.list(bold_data[species_mask, ]$base_number, decreasing = TRUE)
                 indexes <- head(sorted_order, n = input$numeric_keep_the_longest_n)
                 filtered_bold_data <<- filtered_bold_data %>% rbind(bold_data[species_mask, ][indexes, ])
@@ -210,19 +220,24 @@ server <- function(input, output, session) {
         }
 
         filtered_bold_data$filter_threshold <<- input$numeric_keep_the_longest_n
+        print(filtered_bold_data)
 
         output$ui_species_viewer_holder <- shiny::renderUI({})
         output$DT_species_viewer <- DT::renderDataTable(options = list(scrollX = TRUE, paging = FALSE), rownames = FALSE, filter = "top", escape = FALSE, selection = "none", {
             df <- data.frame("species" = species)
+            print(df)
             df$total_count <- species %>% lapply(function(spe) {
                 (bold_data$species_name == spe) %>% sum
             })
+            print(df)
             df$samples_from_europe <- species %>% lapply(function(spe) {
                 (only_europe_bold_data$species_name == spe) %>% sum
             })
+            print(df)
             df$using_only_european_samples <- species %>% lapply(function(spe) {
                 ((only_europe_bold_data$species_name == spe) %>% sum) >= input$numeric_keep_the_longest_n
             })
+            print(df)
             df$kept_samples <- species %>% lapply(function(spe) {
                 (filtered_bold_data$species_name == spe) %>% sum
             })
@@ -251,6 +266,35 @@ server <- function(input, output, session) {
 
         bold_filtered
     }
+
+    shiny::observeEvent(input$button_generate_blast_query, {
+        if (is.null(filtered_bold_data)) {
+            shiny::showNotification("There is no filtered bold data", duration = 10, type = "error")
+            return()
+        }
+
+        querys <- generate_blast_query(species, filtered_bold_data, input$numeric_keep_the_longest_n)
+        if (length(querys) == 0) {
+            shiny::showNotification("No blast query needed.", duration = 15, type = "message")
+            shiny::removeUI(selector = "#div_show_fa_querys > *", multiple = TRUE)
+            return()
+        }
+
+        shiny::showNotification("Generated blast query files", duration = 15, type = "message")
+
+        shiny::removeUI(selector = "#div_show_fa_querys > *", multiple = TRUE)
+
+        lapply(names(querys), function(spe) {
+            fa_text <- querys[[spe]] %>% apply(1, function(x) {
+                x <- unlist(x)
+                paste0(">", spe, "\n", x["nucleotides"])
+            }) %>% unlist %>% paste0(collapse = "\n")
+
+            shiny::insertUI(selector = "#div_show_fa_querys", where = "beforeEnd", ui = shiny::h4(paste0("Showing querys for: ", spe)))
+            shiny::insertUI(selector = "#div_show_fa_querys", where = "beforeEnd", ui = shiny::p(fa_text))
+            shiny::insertUI(selector = "#div_show_fa_querys", where = "beforeEnd", ui = shiny::tags$hr())
+        })
+    })
 }
 
 shiny::shinyApp(ui = ui, server = server)

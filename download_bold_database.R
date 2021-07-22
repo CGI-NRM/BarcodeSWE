@@ -120,9 +120,8 @@
 
 library(magrittr)
 
-download_species_list <- function(checklist, progress = NULL) {
+download_species_list <- function(species, progress = NULL) {
     message <- c()
-    species <- unique(checklist[, 1])
     taxon_total = data.frame()
     for (i in 1:length(species)) {
         if (!is.null(progress)) {
@@ -148,7 +147,7 @@ download_species_list <- function(checklist, progress = NULL) {
 
     taxon <- taxon[taxon$markercode == "COI-5P", ]
     taxon$base_number <- stringr::str_count(taxon$nucleotides, pattern="[ATGC]")
-    taxon <- taxon[(taxon$base_number>=300), ]
+    taxon <- taxon[taxon$base_number >= 300, ]
     taxon <- taxon[taxon$species_name != "" & !is.na(taxon$species_name), ]
     taxon <- taxon[taxon$nucleotides != ""  & !is.na(taxon$nucleotides), ]
     taxon <- taxon[taxon$species_name != "" & !is.na(taxon$species_name), ]
