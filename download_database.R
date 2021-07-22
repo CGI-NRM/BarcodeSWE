@@ -2,6 +2,9 @@ library(magrittr)
 
 source("download_bold_database.R")
 source("generate_blast_query.R")
+source("bold_to_decipher_fasta.R")
+source("bold_to_decipher_taxid.R")
+source("train_decipher.R")
 
 options(shiny.maxRequestSize = 50 * 1024^2)
 
@@ -52,6 +55,9 @@ ui <- shiny::fluidPage(
         shiny::tabPanel(title = "Blast NCBI Data", label = "tab_blast_ncbi_data",
             shiny::actionButton(inputId = "button_generate_blast_query", label = "Generate Blast Query"),
             shiny::div(id = "div_show_fa_querys")
+        ),
+        shiny::tabPanel(title = "Train DECIPHER", label = "tab_train_decipher",
+            shiny::actionButton(inputId = "button_train_decipher", label = "Train DECIPHER")
         )
     )
 )
@@ -220,24 +226,19 @@ server <- function(input, output, session) {
         }
 
         filtered_bold_data$filter_threshold <<- input$numeric_keep_the_longest_n
-        print(filtered_bold_data)
 
         output$ui_species_viewer_holder <- shiny::renderUI({})
         output$DT_species_viewer <- DT::renderDataTable(options = list(scrollX = TRUE, paging = FALSE), rownames = FALSE, filter = "top", escape = FALSE, selection = "none", {
             df <- data.frame("species" = species)
-            print(df)
             df$total_count <- species %>% lapply(function(spe) {
                 (bold_data$species_name == spe) %>% sum
             })
-            print(df)
             df$samples_from_europe <- species %>% lapply(function(spe) {
                 (only_europe_bold_data$species_name == spe) %>% sum
             })
-            print(df)
             df$using_only_european_samples <- species %>% lapply(function(spe) {
                 ((only_europe_bold_data$species_name == spe) %>% sum) >= input$numeric_keep_the_longest_n
             })
-            print(df)
             df$kept_samples <- species %>% lapply(function(spe) {
                 (filtered_bold_data$species_name == spe) %>% sum
             })
@@ -294,6 +295,26 @@ server <- function(input, output, session) {
             shiny::insertUI(selector = "#div_show_fa_querys", where = "beforeEnd", ui = shiny::p(fa_text))
             shiny::insertUI(selector = "#div_show_fa_querys", where = "beforeEnd", ui = shiny::tags$hr())
         })
+    })
+
+    shiny::observeEvent(input$button_train_decipher, {
+        if (is.null(filtered_bold_data)) {
+            shiny::showNotification("No filtered bold data.", duration = 15, type = "error")
+            return()
+        }
+
+        generate_decipher_fasta(filtered_bold_data)
+        shiny::showNotification("Generated fasta file from bold data. Exported to 'bold.fasta'", duration = 0, type = "message")
+        generate_decipher_taxid(filtered_bold_data)
+        shiny::showNotification("Generated taxid file from bold data. Exported to 'taxid.txt'", duration = 0, type = "message")
+
+        res <- train_decipher(seqs_path = "bold.fasta", rank_path = "taxid.txt", maxGroupSize = Inf, maxIterations = 5)
+
+        if (length(res$message) > 0) {
+            lapply(res$message, function(mes) {
+                shiny::showNotification(mes, duration = 0, type = "message")
+            })
+        }
     })
 }
 
