@@ -15,7 +15,7 @@ groupCounts <- table(groups)
 u_groups <- names(groupCounts) # unique groups
 length(u_groups) # number of groups
 
-maxGroupSize <- 10 # >= 1
+maxGroupSize <- Inf # >= 1
 remove <- logical(length(seqs))
 for (i in which(groupCounts > maxGroupSize)) {
     index <- which(groups == u_groups[i])

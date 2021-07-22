@@ -120,39 +120,49 @@
 
 library(magrittr)
 
-grades_checklist <- function(checklist, inputz, coordz) {
+download_species_list <- function(checklist, progress = NULL) {
+    message <- c()
     species <- unique(checklist[, 1])
-    x <- length(species)
     taxon_total = data.frame()
-    y = x %/% 300 + 2
-    i <- 1
-    while (i < y) {
-        ini <- 1 + (300 * (i - 1))
-        fin <- 300 * i
-        taxa <- bold::bold_seqspec(taxon=species[ini:fin], format = "tsv")
+    for (i in 1:length(species)) {
+        if (!is.null(progress)) {
+            progress$inc(0, detail = paste0("Downloading: ", species[i]))
+        }
+
+        taxa <- bold::bold_seqspec(taxon=species[i], format = "tsv") %>% data.frame
+
+        taxa[,colnames(taxon_total)[!colnames(taxon_total) %in% colnames(taxa)]] <- NA
+        if (nrow(taxon_total) > 0) {
+            taxon_total[,colnames(taxa)[!colnames(taxa) %in% colnames(taxon_total)]] <- NA
+        }
+
         taxon_total <- rbind(taxon_total, taxa)
-        i = i + 1
+
+        if (!is.null(progress)) {
+            progress$inc(1 / length(species))
+        }
+
     }
+
     taxon <- taxon_total
+
+    taxon <- taxon[taxon$markercode == "COI-5P", ]
+    taxon$base_number <- stringr::str_count(taxon$nucleotides, pattern="[ATGC]")
+    taxon <- taxon[(taxon$base_number>=300), ]
+    taxon <- taxon[taxon$species_name != "" & !is.na(taxon$species_name), ]
+    taxon <- taxon[taxon$nucleotides != ""  & !is.na(taxon$nucleotides), ]
+    taxon <- taxon[taxon$species_name != "" & !is.na(taxon$species_name), ]
+    taxon <- taxon[taxon$bin_uri != ""      & !is.na(taxon$bin_uri), ]
 
     found_in_bold <- species %>% lapply(function(x) {
             x %in% taxon$species_name
         }) %>% unlist
 
     if (any(!found_in_bold)) {
-        print("Some species could not be found in bold: ")
-        print(paste0(species[!found_in_bold], collapse = ", "))
+        message <- paste0("Could not find any data on '", species[!found_in_bold], "' in bold.")
+        print(message)
     }
 
-    # Foreach species
-        # If more than 10 of okay grade
-            # Keep with geo-pos
-            # Keep in europa 
-
-    write.table(taxon_total, file = "out.tsv", sep = "\t", row.names = FALSE)
-    return()
+    return(list(data = taxon, message = message))
 }
 
-
-spec <- read.table(file = "species.txt", sep = "\t", comment.char = '"', header = TRUE)
-grades_checklist(spec, 300, TRUE)

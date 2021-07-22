@@ -1,6 +1,6 @@
 library(magrittr)
 
-bold = read.table(file = "out.tsv", sep = "\t", comment.char = "", header = TRUE, na.strings = c("NA"))
+bold = read.table(file = "bold.tsv", sep = "\t", comment.char = "", header = TRUE, na.strings = c("NA"))
 
 total_rows <- nrow(bold)
 bold <- bold[!is.na(bold[,"nucleotides"]) & bold[,"nucleotides"] != "",]

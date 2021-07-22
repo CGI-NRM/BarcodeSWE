@@ -1,6 +1,6 @@
 library(magrittr)
 
-bold <- read.table(file = "out.tsv", sep = "\t", comment.char = "", header = TRUE)
+bold <- read.table(file = "bold.tsv", sep = "\t", comment.char = "", header = TRUE)
 
 ranks <- bold %>% apply(1, function(row) {
     paste0(
