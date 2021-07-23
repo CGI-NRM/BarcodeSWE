@@ -1,10 +1,6 @@
 library(DECIPHER)
 
-train_decipher <- function(seqs_path, rank_path, maxGroupSize, maxIterations) {
-    # TODO:
-    #   Add back cat from git
-    #   pipe output to shiny terminal/text
-    #   Only keep message for exported 'trainingSet.Rdata'
+train_decipher <- function(seqs_path, rank_path, maxGroupSize = Inf, maxIterations = 5, shinyProgress = NULL) {
     message <- c()
     seqs <- readDNAStringSet(seqs_path)
     taxid <- read.table(rank_path, header=FALSE, col.names=c('Index', 'Name', 'Parent', 'Level', 'Rank'), sep="*", quote="", stringsAsFactors=FALSE)
@@ -30,6 +26,10 @@ train_decipher <- function(seqs_path, rank_path, maxGroupSize, maxIterations) {
     allowGroupRemoval <- FALSE
     probSeqsPrev <- integer() # suspected problem sequences from prior iteration
     for (i in seq_len(maxIterations)) {
+        cat("Training iteration: ", i, "\n", sep = "")
+        if (!is.null(shinyProgress)) {
+            shinyProgress$inc(0, detail = paste0("Training iteration: ", i))
+        }
         # train the classifier
         trainingSet <- LearnTaxa(seqs[!remove], names(seqs)[!remove], taxid)
         # look for problem sequences
@@ -57,6 +57,10 @@ train_decipher <- function(seqs_path, rank_path, maxGroupSize, maxIterations) {
                 remove[index] <- FALSE # don't remove
             }
         }
+
+        if (!is.null(shinyProgress)) {
+            shinyProgress$inc(1 / maxIterations)
+        }
     }
 
     message <- c(message, c(
@@ -64,7 +68,6 @@ train_decipher <- function(seqs_path, rank_path, maxGroupSize, maxIterations) {
         paste0("Number of remaining problem sequences: ", length(probSeqs)),
         "Exported training data to 'trainingSet.Rdata'"))
 
-    save(list = "trainingSet", file = "trainingSet.Rdata")
 
     list(trainingSet = trainingSet, message = message)
 }
